@@ -160,3 +160,11 @@ cython_debug/
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
+
+# VS Code
+.vscode
+
+#  Specific To The Product
+call_log_index.bin
+call_log_id_to_entity.pkl
+call_log_graph.gpickle
