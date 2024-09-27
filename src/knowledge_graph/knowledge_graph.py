@@ -81,9 +81,7 @@ def create_embedding_from_graph(graph, client):
     # Extract unique entities from the triples
     entities = set(triples_data_frame["head"]).union(set(triples_data_frame["tail"]))
 
-    entity_embeddings, id_to_entity, entity_to_id = get_entity_embeddings(
-        entities, client
-    )
+    entity_embeddings, id_to_entity = get_entity_embeddings(entities, client)
 
     # Create FAISS index (this part remains similar)
     embedding_dimension = entity_embeddings.shape[1]
@@ -99,7 +97,6 @@ def get_entity_embeddings(entities, client, model="text-embedding-ada-002"):
 
     max_context_length = 8191  # For text-embedding-ada-002
     entity_embeddings = []
-    entity_to_id = {}
     id_to_entity = {}
     batch = []
     batch_token_count = 0
@@ -127,7 +124,6 @@ def get_entity_embeddings(entities, client, model="text-embedding-ada-002"):
             for i, embedding in enumerate(batch_embeddings):
                 global_idx = idx - len(batch) + i
                 entity_embeddings.append(embedding)
-                entity_to_id[batch[i]] = global_idx
                 id_to_entity[global_idx] = batch[i]
             # Reset batch
             batch = []
@@ -149,12 +145,11 @@ def get_entity_embeddings(entities, client, model="text-embedding-ada-002"):
         for i, embedding in enumerate(batch_embeddings):
             global_idx = len(entity_embeddings)
             entity_embeddings.append(embedding)
-            entity_to_id[batch[i]] = global_idx
             id_to_entity[global_idx] = batch[i]
 
     # Convert embeddings to NumPy array
     entity_embeddings = np.array(entity_embeddings, dtype="float32")
-    return entity_embeddings, entity_to_id, id_to_entity
+    return entity_embeddings, id_to_entity
 
 
 def get_data_frame_from_csv():
@@ -165,25 +160,25 @@ def get_data_frame_from_csv():
 
     # Fill missing values
     na_fill_values = {
-        "Contact Date": "",
-        "Reference Nbr": "",
-        "Department": "",
-        "Origin": "",
+        "Contact Date": "1/1/2000",
+        "Reference Nbr": "9999",
+        "Department": "No Department",
+        "Origin": "No Origin",
         "Serial Nbr": "No Serial Number",
-        "Model Number": "",
+        "Model Number": "No Model",
         "Horsepower Group": "No Horsepower Group",
-        "Product Item Description": "",
-        "Status": "",
-        "Type": "",
+        "Product Item Description": "No Item Description",
+        "Status": "No Status",
+        "Type": "No Type",
         "Reason Code": "No Reason Code",
-        "Reason Code Desc": "",
+        "Reason Code Desc": "No Reason Code Desc",
         "Cylinders": "No Cylinders",
         "Ora Warr Family Desc": "No Ora Warr Family Desc",
         "Dealer OEM Number": 0,
         "Dealer OEM Name": "No Name",
         "Part Code Desc": "No Code",
         "Fail Code Desc": "No Fail Code Desc",
-        "Text": "",
+        "Text": "No Text",
     }
 
     data.fillna(value=na_fill_values, inplace=True)
@@ -275,11 +270,19 @@ def get_text_embedding(text, client, model="text-embedding-ada-002"):
 def get_relevant_entities(query, index, id_to_entity, client, k=5):
     """Function to retrieve relevant entities from the knowledge graph"""
     # Get the text embedding of the query
-    query_embedding = get_text_embedding(query, client).astype("float32")
+    query_embedding = get_text_embedding(query, client)  # astype("float32")
     # Since the knowledge graph embeddings are in the same space, we can search directly
     _, indices = index.search(np.array([query_embedding]), k)
     # Retrieve entity names
-    relevant_entities = [id_to_entity[idx] for idx in indices[0]]
+    relevant_entities = []
+    for idx in indices[0]:
+        if idx in id_to_entity.keys():
+            print(f'Index ({idx}) exists')
+            relevant_entities.append(id_to_entity[idx])
+        else:
+            print(f'Index ({idx}) doesn\'t exist')
+
+    #  relevant_entities = [id_to_entity[idx] for idx in indices[0]]
     return relevant_entities
 
 
@@ -327,7 +330,7 @@ def generate_llm_response(prompt, client):
 def get_final_response(query, graph, index, id_to_entity, client):
     """Function to get the final response"""
     prompt = create_prompt_with_kg(query, graph, index, id_to_entity, client)
-    response = generate_llm_response(prompt)
+    response = generate_llm_response(prompt, client)
     return response
 
 
