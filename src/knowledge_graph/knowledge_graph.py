@@ -47,7 +47,7 @@ def load_or_build_graph(get_data_frame_func):
             pickle.dump(graph, f)
         print("Knowledge graph saved to disk.")
         is_graph_new = True
-    print(f"Number of edged in load_or_build_graph ({graph.number_of_edges()})")
+    # print(f"Number of edges in load_or_build_graph ({graph.number_of_edges()})")
     return graph, is_graph_new
 
 
@@ -72,11 +72,11 @@ def create_embedding_from_graph(graph, client):
         raise ValueError(
             "The 'triples' list is empty. Please check the graph construction."
         )
-    else:
-        print(len(triples))
+    # else:
+    #     print(len(triples))
 
     triples_data_frame = pd.DataFrame(triples, columns=["head", "relation", "tail"])
-    print(triples_data_frame.head())
+    # print(triples_data_frame.head())
 
     # Extract unique entities from the triples
     entities = set(triples_data_frame["head"]).union(set(triples_data_frame["tail"]))
@@ -85,7 +85,7 @@ def create_embedding_from_graph(graph, client):
 
     # Create FAISS index (this part remains similar)
     embedding_dimension = entity_embeddings.shape[1]
-    print(f"Creating FAISS index with embedding dimension: {embedding_dimension}")
+    # print(f"Creating FAISS index with embedding dimension: {embedding_dimension}")
     index = faiss.IndexFlatL2(embedding_dimension)
     index.add(entity_embeddings)
 
@@ -103,7 +103,7 @@ def get_entity_embeddings(entities, client, model="text-embedding-ada-002"):
     encoding = tiktoken.encoding_for_model(model)
 
     entities = list(entities)  # Ensure it's a list for indexing
-    print(f'There are a total of ({len(entities)}) entities')
+    # print(f'There are a total of ({len(entities)}) entities')
 
     for idx, entity in enumerate(entities):
         entity_str = str(entity)
@@ -183,7 +183,7 @@ def get_data_frame_from_csv():
 
     data.fillna(value=na_fill_values, inplace=True)
 
-    print(f"DataFrame Shape in get_data_frame_from_csv: ({data.shape})")
+    # print(f"DataFrame Shape in get_data_frame_from_csv: ({data.shape})")
     return data
 
 
@@ -191,7 +191,7 @@ def create_graph_from_data_frame(data_frame_func):
     """Create knowledge graph from passed in data frame"""
     print("create_graph_from_data_frame")
     data = data_frame_func()
-    print(f"DataFrame Shape in create_graph_from_data_frame {data.shape}")
+    # print(f"DataFrame Shape in create_graph_from_data_frame {data.shape}")
     graph = nx.MultiDiGraph()
 
     for _, row in data.iterrows():
@@ -249,9 +249,9 @@ def create_graph_from_data_frame(data_frame_func):
         graph.add_edge(product_desc, dealer_name, relation="product_dealter")
         graph.add_edge(reference_nbr, text, relation="interation_text")
 
-    print(
-        f"Number of edged in create_graph_from_data_frame ({graph.number_of_edges()})"
-    )
+    # print(
+    #     f"Number of edged in create_graph_from_data_frame ({graph.number_of_edges()})"
+    # )
 
     return graph
 
@@ -267,7 +267,7 @@ def get_text_embedding(text, client, model="text-embedding-ada-002"):
     return embedding
 
 
-def get_relevant_entities(query, index, id_to_entity, client, k=5):
+def get_relevant_entities(query, index, id_to_entity, client, k=40):
     """Function to retrieve relevant entities from the knowledge graph"""
     # Get the text embedding of the query
     query_embedding = get_text_embedding(query, client)  # astype("float32")
@@ -277,10 +277,17 @@ def get_relevant_entities(query, index, id_to_entity, client, k=5):
     relevant_entities = []
     for idx in indices[0]:
         if idx in id_to_entity.keys():
+<<<<<<< Updated upstream
             print(f'Index ({idx}) exists')
             relevant_entities.append(id_to_entity[idx])
         else:
             print(f'Index ({idx}) doesn\'t exist')
+=======
+            # print(f'Index ({idx}) exists')
+            relevant_entities.append(id_to_entity[idx])
+        # else:
+        #     print(f'Index ({idx}) doesn\'t exist')
+>>>>>>> Stashed changes
 
     #  relevant_entities = [id_to_entity[idx] for idx in indices[0]]
     return relevant_entities
@@ -292,6 +299,9 @@ def create_prompt_with_kg(query, graph, index, id_to_entity, client):
     context = ""
     for entity in relevant_entities:
         # Extract node attributes
+        if entity not in graph.nodes:
+            print(f"Entity ({entity}) not found in graph")
+            continue
         node_data = graph.nodes[entity]
         node_info = f"Entity: {entity}, Attributes: {node_data}"
         # Get connected edges and nodes
@@ -314,7 +324,7 @@ def create_prompt_with_kg(query, graph, index, id_to_entity, client):
     Answer:
     """
 
-    print(prompt)
+    # print(prompt)
     return prompt.strip()
 
 
@@ -323,7 +333,7 @@ def generate_llm_response(prompt, client):
     response = client.chat.completions.create(
         model="gpt-3.5-turbo", messages=[{"role": "user", "content": prompt}]
     )
-    print(obj_to_txt(response))
+    # print(obj_to_txt(response))
     return response.choices[0].message.content
 
 
